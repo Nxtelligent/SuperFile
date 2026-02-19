@@ -6,37 +6,48 @@ Left panel with collapsible sections: Recents, Bookmarks, Storage, Places, Favor
 import os
 import string
 import shutil
-from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtCore import Qt, Signal, QSize, QFileInfo
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLineEdit, QTreeWidget, QTreeWidgetItem,
-    QLabel, QScrollArea, QFrame, QHBoxLayout, QSizePolicy
+    QLabel, QScrollArea, QFrame, QHBoxLayout, QSizePolicy,
+    QFileIconProvider
 )
-from PySide6.QtGui import QIcon, QColor, QPixmap, QPainter, QFont
+from PySide6.QtGui import QIcon, QColor, QPixmap, QPainter, QFont, QPalette
 
 from .utils import format_file_size
 
-
-def _color_icon(color_hex, size=16):
-    """Create a simple colored square icon."""
-    pixmap = QPixmap(size, size)
-    pixmap.fill(QColor(color_hex))
-    return QIcon(pixmap)
+# Global icon provider for system icons
+_icon_provider = QFileIconProvider()
 
 
-def _folder_icon():
-    return _color_icon("#e8a838")
+def _system_icon(path):
+    """Get the real system icon for a file or folder path."""
+    try:
+        info = QFileInfo(path)
+        return _icon_provider.icon(info)
+    except Exception:
+        return _icon_provider.icon(QFileIconProvider.IconType.Folder)
 
 
-def _drive_icon():
-    return _color_icon("#5a9fd4")
+def _drive_icon_for(path):
+    """Get system icon for a drive."""
+    try:
+        info = QFileInfo(path)
+        return _icon_provider.icon(info)
+    except Exception:
+        return _icon_provider.icon(QFileIconProvider.IconType.Drive)
 
 
-def _file_icon():
-    return _color_icon("#8888aa")
+def _generic_folder_icon():
+    return _icon_provider.icon(QFileIconProvider.IconType.Folder)
 
 
-def _star_icon():
-    return _color_icon("#f0c040")
+def _generic_drive_icon():
+    return _icon_provider.icon(QFileIconProvider.IconType.Drive)
+
+
+def _generic_file_icon():
+    return _icon_provider.icon(QFileIconProvider.IconType.File)
 
 
 class SidebarSection(QWidget):
@@ -103,7 +114,7 @@ class SidebarSection(QWidget):
 
 
 class SidebarItem(QWidget):
-    """A single clickable item in the sidebar."""
+    """A single clickable item in the sidebar with hover highlight."""
 
     clicked = Signal(str)  # path
 
@@ -112,6 +123,8 @@ class SidebarItem(QWidget):
         self.path = path
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFixedHeight(26)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self._hovered = False
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12 + indent * 16, 0, 8, 0)
@@ -121,26 +134,35 @@ class SidebarItem(QWidget):
             icon_label = QLabel()
             icon_label.setPixmap(icon.pixmap(QSize(16, 16)))
             icon_label.setFixedSize(16, 16)
+            icon_label.setStyleSheet("background-color: transparent;")
             layout.addWidget(icon_label)
 
-        text_label = QLabel(label)
-        text_label.setStyleSheet("""
+        self._text_label = QLabel(label)
+        self._text_label.setStyleSheet("""
             color: #c0c0d0;
             font-size: 12px;
             background-color: transparent;
         """)
-        layout.addWidget(text_label)
+        layout.addWidget(self._text_label)
         layout.addStretch()
 
-        self._default_style = "background-color: transparent; border-radius: 4px;"
-        self._hover_style = "background-color: #2a2a3e; border-radius: 4px;"
-        self.setStyleSheet(self._default_style)
-
     def enterEvent(self, event):
-        self.setStyleSheet(self._hover_style)
+        self._hovered = True
+        self.update()
 
     def leaveEvent(self, event):
-        self.setStyleSheet(self._default_style)
+        self._hovered = False
+        self.update()
+
+    def paintEvent(self, event):
+        if self._hovered:
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setBrush(QColor(42, 42, 62))  # #2a2a3e
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(self.rect().adjusted(4, 0, -4, 0), 4, 4)
+            painter.end()
+        super().paintEvent(event)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self.path:
@@ -250,13 +272,13 @@ class NavigationSidebar(QWidget):
         # OneDrive paths
         onedrive = os.path.join(home, "OneDrive")
         if os.path.exists(onedrive):
-            self.bookmarks_section.add_item("OneDrive", onedrive, _drive_icon())
+            self.bookmarks_section.add_item("OneDrive", onedrive, _system_icon(onedrive))
 
         # Check for common cloud storage
         for name in ["Google Drive", "Dropbox", "iCloudDrive"]:
             path = os.path.join(home, name)
             if os.path.exists(path):
-                self.bookmarks_section.add_item(name, path, _drive_icon())
+                self.bookmarks_section.add_item(name, path, _system_icon(path))
 
     def _populate_storage(self):
         """Add drive letters."""
@@ -277,9 +299,9 @@ class NavigationSidebar(QWidget):
                             label = f"{buf.value} ({letter}:)"
                     except Exception:
                         pass
-                    self.storage_section.add_item(label, drive, _drive_icon())
+                    self.storage_section.add_item(label, drive, _drive_icon_for(drive))
                 except Exception:
-                    self.storage_section.add_item(f"({letter}:)", drive, _drive_icon())
+                    self.storage_section.add_item(f"({letter}:)", drive, _generic_drive_icon())
 
     def _populate_places(self):
         """Add common places."""
@@ -287,20 +309,20 @@ class NavigationSidebar(QWidget):
         user = os.path.basename(home)
 
         places = [
-            ("This PC", "C:\\", _drive_icon()),
-            (user, home, _folder_icon()),
-            ("Desktop", os.path.join(home, "Desktop"), _folder_icon()),
-            ("Downloads", os.path.join(home, "Downloads"), _folder_icon()),
-            ("Documents", os.path.join(home, "Documents"), _folder_icon()),
-            ("Music", os.path.join(home, "Music"), _folder_icon()),
-            ("Pictures", os.path.join(home, "Pictures"), _folder_icon()),
-            ("Videos", os.path.join(home, "Videos"), _folder_icon()),
+            ("This PC", "C:\\", _generic_drive_icon()),
+            (user, home, _system_icon(home)),
+            ("Desktop", os.path.join(home, "Desktop"), _system_icon(os.path.join(home, "Desktop"))),
+            ("Downloads", os.path.join(home, "Downloads"), _system_icon(os.path.join(home, "Downloads"))),
+            ("Documents", os.path.join(home, "Documents"), _system_icon(os.path.join(home, "Documents"))),
+            ("Music", os.path.join(home, "Music"), _system_icon(os.path.join(home, "Music"))),
+            ("Pictures", os.path.join(home, "Pictures"), _system_icon(os.path.join(home, "Pictures"))),
+            ("Videos", os.path.join(home, "Videos"), _system_icon(os.path.join(home, "Videos"))),
         ]
 
         # Add recycle bin path if accessible
         recycle = "C:\\$Recycle.Bin"
         if os.path.exists(recycle):
-            places.append(("$RecycleBin", recycle, _file_icon()))
+            places.append(("$RecycleBin", recycle, _system_icon(recycle)))
 
         for label, path, icon in places:
             if os.path.exists(path):
@@ -322,10 +344,10 @@ class NavigationSidebar(QWidget):
             oldest.deleteLater()
             self.recents_section._items.pop(0)
         label = os.path.basename(path) or path
-        self.recents_section.add_item(label, path, _folder_icon())
+        self.recents_section.add_item(label, path, _system_icon(path))
 
     def add_favorite(self, path):
         """Add a path to favorites."""
         label = os.path.basename(path) or path
-        icon = _folder_icon() if os.path.isdir(path) else _file_icon()
+        icon = _system_icon(path)
         self.favorites_section.add_item(label, path, icon)
