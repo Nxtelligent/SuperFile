@@ -72,13 +72,17 @@ class FilePanel(QWidget):
         self.tree.setAlternatingRowColors(True)
         self.tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        # Column widths
+        # Column widths — all user-resizable
         header = self.tree.header()
         header.setStretchLastSection(False)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        # Default widths for non-stretch columns
+        header.resizeSection(1, 100)
+        header.resizeSection(2, 100)
+        header.resizeSection(3, 140)
 
         layout.addWidget(self.tree)
 
@@ -118,6 +122,11 @@ class FilePanel(QWidget):
 
     def _close_tab(self, index):
         if self.tab_bar.count() <= 1:
+            # Last tab — navigate to home instead of preventing close
+            home = os.path.expanduser("~")
+            self._tabs[0] = home
+            self.tab_bar.setTabText(0, os.path.basename(home))
+            self._navigate(home)
             return
         self._tabs.pop(index)
         self.tab_bar.removeTab(index)

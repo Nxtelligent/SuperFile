@@ -154,7 +154,8 @@ class NavigationSidebar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedWidth(220)
+        self.setMinimumWidth(150)
+        self.setMaximumWidth(400)
         self.setStyleSheet("""
             NavigationSidebar {
                 background-color: #141420;
@@ -305,11 +306,22 @@ class NavigationSidebar(QWidget):
             if os.path.exists(path):
                 self.places_section.add_item(label, path, icon)
 
+    _MAX_RECENTS = 8
+
     def add_recent(self, path):
-        """Add a path to the recents section."""
-        # Avoid duplicates — keep last 10
+        """Add a path to the recents section (max 8, no duplicates)."""
+        path = os.path.normpath(path)
+        # Check for duplicates
+        for item in self.recents_section._items:
+            if os.path.normpath(item.path) == path:
+                return
+        # Remove oldest if at limit
+        if len(self.recents_section._items) >= self._MAX_RECENTS:
+            oldest = self.recents_section._items[0]
+            self.recents_section.items_layout.removeWidget(oldest)
+            oldest.deleteLater()
+            self.recents_section._items.pop(0)
         label = os.path.basename(path) or path
-        # Clear and rebuild (simple approach)
         self.recents_section.add_item(label, path, _folder_icon())
 
     def add_favorite(self, path):

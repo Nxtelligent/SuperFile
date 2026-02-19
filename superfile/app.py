@@ -28,7 +28,7 @@ class MainWindow(QMainWindow):
         self.resize(1400, 800)
 
         self._inspector_visible = True
-        self._dual_pane = True
+        self._dual_pane = False  # Start in single-pane mode
 
         self._setup_menu_bar()
         self._setup_central()
@@ -39,6 +39,8 @@ class MainWindow(QMainWindow):
         home = os.path.expanduser("~")
         self.left_panel.navigate_to(home)
         self.right_panel.navigate_to(home)
+        # Hide right panel (single-pane default)
+        self.right_panel.setVisible(False)
 
     def _setup_menu_bar(self):
         menubar = self.menuBar()
