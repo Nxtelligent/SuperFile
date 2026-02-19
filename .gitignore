@@ -1,0 +1,11 @@
+# Binaries
+*.exe
+*.dll
+*.bin
+
+# Temporary dumps
+strings_dump.txt
+help_output.txt
+root_log.txt
+debug_log.txt
+*.xor_*.bin
