@@ -1,38 +1,42 @@
 # SuperFile
 
-Reverse engineering and analysis toolkit for Windows executables.
+A fast, modern file manager for Windows — inspired by [FilePilot](https://filepilot.tech).
+
+## Features
+
+- **Dual-pane browsing** — side-by-side file panels
+- **Tabbed navigation** — open multiple folders in tabs
+- **File inspector** — preview text files, images, and folder contents
+- **File operations** — copy, cut, paste, rename, delete
+- **Address bar** — type paths with autocompletion
+- **Context menus** — right-click for file actions, open in Explorer/Terminal
+- **Keyboard-first** — full shortcut support (see below)
+- **Dark theme** — modern dark purple aesthetic
 
 ## Quick Start
 
-1. Edit `config.py` — set `TARGET_EXE` to the path of your target executable
-2. Run any script: `python analyze_exe.py`
+```bash
+pip install PySide6
+python main.py
+```
 
-## Scripts
+## Keyboard Shortcuts
 
-| Script | Purpose |
+| Shortcut | Action |
 |---|---|
-| `analyze_exe.py` | PE header analysis, installer signature detection |
-| `deep_analyze.py` | String extraction, config key search, framework detection |
-| `dump_manifest.py` | Extract RT_MANIFEST from PE resources |
-| `dump_sections.py` | Dump RCDATA and overlay sections |
-| `dump_strings.py` | Dump all ASCII/Unicode strings to file |
-| `find_config_name.py` | Search for `.json` filenames and AppData paths |
-| `list_imports.py` | List DLL imports |
-| `update_manifest.py` | Inject UTF-8 manifest via Win32 API |
-| `crack_blob.py` | Decompress/XOR decrypt binary blobs |
-
-## Configuration
-
-All scripts use `config.py` for paths:
-
-```python
-TARGET_EXE = r"C:\path\to\your\target.exe"
-```
-
-Output files (dumps, extracted resources) go to the `output/` directory.
-
-## Requirements
-
-```
-pip install pefile
-```
+| `Ctrl+T` | New tab |
+| `Ctrl+W` | Close tab |
+| `Ctrl+Tab` | Next tab |
+| `Ctrl+Shift+Tab` | Previous tab |
+| `Ctrl+L` | Focus address bar |
+| `Ctrl+I` | Toggle inspector |
+| `Ctrl+Shift+E` | Toggle dual pane |
+| `Ctrl+N` | New folder |
+| `Ctrl+C / X / V` | Copy / Cut / Paste |
+| `F2` | Rename |
+| `Delete` | Delete |
+| `F5` | Refresh |
+| `Alt+Left/Right` | Back / Forward |
+| `Alt+Up` | Go up one level |
+| `Backspace` | Go up one level |
+| `Enter` | Open file/folder |
