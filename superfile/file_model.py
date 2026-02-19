@@ -14,7 +14,7 @@ from .utils import format_file_size
 
 class FolderSizeWorker(QObject):
     """Background worker to calculate folder sizes."""
-    size_ready = Signal(str, int)  # (path, size_bytes)
+    size_ready = Signal(str, float)  # (path, size_bytes) — float to avoid 32-bit int overflow
 
     def calculate(self, path):
         """Calculate total size of a directory."""
@@ -29,7 +29,7 @@ class FolderSizeWorker(QObject):
                         pass
         except (OSError, PermissionError):
             pass
-        self.size_ready.emit(path, total)
+        self.size_ready.emit(path, float(total))
 
 
 class FileModel(QFileSystemModel):
@@ -46,7 +46,7 @@ class FileModel(QFileSystemModel):
 
     def _on_size_ready(self, path, size_bytes):
         """Handle folder size calculation result."""
-        self._folder_sizes[path] = size_bytes
+        self._folder_sizes[path] = int(size_bytes)
         # Find the index for this path and emit dataChanged
         idx = self.index(path)
         if idx.isValid():

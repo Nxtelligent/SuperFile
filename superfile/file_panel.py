@@ -1,18 +1,18 @@
 """
 SuperFile — File Panel
-A tabbed file browser panel with tree view, address bar, and file operations.
+A tabbed file browser panel with tree view, breadcrumb bar, and file operations.
 """
 
 import os
 from PySide6.QtCore import Qt, Signal, QModelIndex, QDir
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QTabBar, QTreeView, QHeaderView,
-    QAbstractItemView, QMessageBox, QInputDialog, QMenu
+    QAbstractItemView, QMessageBox, QInputDialog
 )
 from PySide6.QtGui import QKeySequence, QShortcut
 
 from .file_model import FileModel, FileOperations
-from .address_bar import AddressBar
+from .breadcrumb import BreadcrumbBar
 from .context_menu import FileContextMenu
 
 
@@ -51,10 +51,10 @@ class FilePanel(QWidget):
         self.tab_bar.currentChanged.connect(self._on_tab_changed)
         layout.addWidget(self.tab_bar)
 
-        # Address bar
-        self.address_bar = AddressBar()
-        self.address_bar.path_changed.connect(self.navigate_to)
-        layout.addWidget(self.address_bar)
+        # Breadcrumb bar
+        self.breadcrumb = BreadcrumbBar()
+        self.breadcrumb.path_changed.connect(self.navigate_to)
+        layout.addWidget(self.breadcrumb)
 
         # File model
         self.model = FileModel()
@@ -93,38 +93,22 @@ class FilePanel(QWidget):
 
     def _setup_shortcuts(self):
         """Panel-local shortcuts."""
-        # Copy
-        s = QShortcut(QKeySequence("Ctrl+C"), self)
-        s.activated.connect(self.copy_selected)
-
-        # Cut
-        s = QShortcut(QKeySequence("Ctrl+X"), self)
-        s.activated.connect(self.cut_selected)
-
-        # Paste
-        s = QShortcut(QKeySequence("Ctrl+V"), self)
-        s.activated.connect(self.paste)
-
-        # Rename
-        s = QShortcut(QKeySequence("F2"), self)
-        s.activated.connect(self.rename_selected)
-
-        # Delete
-        s = QShortcut(QKeySequence("Delete"), self)
-        s.activated.connect(self.delete_selected)
-
-        # Enter to open
-        s = QShortcut(QKeySequence("Return"), self)
-        s.activated.connect(self._open_selected)
-
-        # Backspace to go up
-        s = QShortcut(QKeySequence("Backspace"), self)
-        s.activated.connect(self.address_bar.go_up)
+        shortcuts = [
+            ("Ctrl+C", self.copy_selected),
+            ("Ctrl+X", self.cut_selected),
+            ("Ctrl+V", self.paste),
+            ("F2", self.rename_selected),
+            ("Delete", self.delete_selected),
+            ("Return", self._open_selected),
+            ("Backspace", self.breadcrumb.go_up),
+        ]
+        for key, func in shortcuts:
+            s = QShortcut(QKeySequence(key), self)
+            s.activated.connect(func)
 
     # ─── Tab Management ──────────────────────────────────
 
     def _add_tab(self, path):
-        """Add a new tab for the given path."""
         path = os.path.normpath(path)
         name = os.path.basename(path) or path
         idx = self.tab_bar.addTab(name)
@@ -133,79 +117,58 @@ class FilePanel(QWidget):
         self._navigate(path)
 
     def _close_tab(self, index):
-        """Close a tab."""
         if self.tab_bar.count() <= 1:
-            return  # Keep at least one tab
+            return
         self._tabs.pop(index)
         self.tab_bar.removeTab(index)
 
     def _on_tab_changed(self, index):
-        """Handle tab switch."""
         if 0 <= index < len(self._tabs):
             self._navigate(self._tabs[index])
 
     def new_tab(self, path=None):
-        """Open a new tab. If no path given, use current directory."""
         if path is None:
             path = self.current_path()
         self._add_tab(path)
 
     def close_current_tab(self):
-        """Close the current tab."""
         self._close_tab(self.tab_bar.currentIndex())
 
     def next_tab(self):
-        """Switch to next tab."""
         idx = self.tab_bar.currentIndex()
-        if idx < self.tab_bar.count() - 1:
-            self.tab_bar.setCurrentIndex(idx + 1)
-        else:
-            self.tab_bar.setCurrentIndex(0)
+        self.tab_bar.setCurrentIndex((idx + 1) % self.tab_bar.count())
 
     def prev_tab(self):
-        """Switch to previous tab."""
         idx = self.tab_bar.currentIndex()
-        if idx > 0:
-            self.tab_bar.setCurrentIndex(idx - 1)
-        else:
-            self.tab_bar.setCurrentIndex(self.tab_bar.count() - 1)
+        self.tab_bar.setCurrentIndex((idx - 1) % self.tab_bar.count())
 
     # ─── Navigation ──────────────────────────────────────
 
     def navigate_to(self, path):
-        """Navigate to a directory path."""
         path = os.path.normpath(path)
         if os.path.isdir(path):
             self._navigate(path)
-            # Update current tab
             idx = self.tab_bar.currentIndex()
             if 0 <= idx < len(self._tabs):
                 self._tabs[idx] = path
                 self.tab_bar.setTabText(idx, os.path.basename(path) or path)
 
-    def open_in_new_tab(self, path):
-        """Open a path in a new tab."""
-        self._add_tab(path)
-
     def _navigate(self, path):
-        """Internal navigation — set tree root and address bar."""
         path = os.path.normpath(path)
         idx = self.model.index(path)
         if idx.isValid():
             self.tree.setRootIndex(idx)
-            self.address_bar.set_path(path)
+            self.breadcrumb.set_path(path)
             self.directory_changed.emit(path)
             self._update_status()
 
     def current_path(self):
-        """Get the current directory path."""
         idx = self.tab_bar.currentIndex()
         if 0 <= idx < len(self._tabs):
             return self._tabs[idx]
         return os.path.expanduser("~")
 
     def refresh(self):
-        """Refresh the current view."""
         path = self.current_path()
         self.model.setRootPath("")
         self.model.setRootPath(path)
@@ -214,31 +177,26 @@ class FilePanel(QWidget):
     # ─── File Operations ─────────────────────────────────
 
     def _get_selected_paths(self):
-        """Get list of selected file paths."""
         indexes = self.tree.selectionModel().selectedRows(0)
         return [self.model.filePath(idx) for idx in indexes]
 
     def _get_selected_path(self):
-        """Get single selected path, or None."""
         paths = self._get_selected_paths()
         return paths[0] if paths else None
 
     def copy_selected(self):
-        """Copy selected files to clipboard."""
         self._clipboard = self._get_selected_paths()
         self._clipboard_cut = False
         if self._clipboard:
             self.status_message.emit(f"Copied {len(self._clipboard)} item(s)")
 
     def cut_selected(self):
-        """Cut selected files to clipboard."""
         self._clipboard = self._get_selected_paths()
         self._clipboard_cut = True
         if self._clipboard:
             self.status_message.emit(f"Cut {len(self._clipboard)} item(s)")
 
     def paste(self):
-        """Paste clipboard items to current directory."""
         if not self._clipboard:
             return
         dst = self.current_path()
@@ -257,11 +215,9 @@ class FilePanel(QWidget):
             QMessageBox.warning(self, "Error", f"Paste failed: {e}")
 
     def has_clipboard(self):
-        """Check if clipboard has items."""
         return bool(self._clipboard)
 
     def delete_selected(self):
-        """Delete selected files."""
         paths = self._get_selected_paths()
         if not paths:
             return
@@ -269,7 +225,6 @@ class FilePanel(QWidget):
         msg = f"Delete {len(paths)} item(s)?\n\n" + "\n".join(names[:10])
         if len(names) > 10:
             msg += f"\n...and {len(names) - 10} more"
-
         reply = QMessageBox.question(
             self, "Confirm Delete", msg,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
@@ -283,14 +238,11 @@ class FilePanel(QWidget):
             self.status_message.emit(f"Deleted {len(paths)} item(s)")
 
     def rename_selected(self):
-        """Rename the selected file."""
         path = self._get_selected_path()
         if not path:
             return
         old_name = os.path.basename(path)
-        new_name, ok = QInputDialog.getText(
-            self, "Rename", "New name:", text=old_name
-        )
+        new_name, ok = QInputDialog.getText(self, "Rename", "New name:", text=old_name)
         if ok and new_name and new_name != old_name:
             try:
                 FileOperations.rename_file(path, new_name)
@@ -299,10 +251,7 @@ class FilePanel(QWidget):
                 QMessageBox.warning(self, "Error", f"Rename failed: {e}")
 
     def create_new_folder(self):
-        """Create a new folder in the current directory."""
-        name, ok = QInputDialog.getText(
-            self, "New Folder", "Folder name:", text="New Folder"
-        )
+        name, ok = QInputDialog.getText(self, "New Folder", "Folder name:", text="New Folder")
         if ok and name:
             try:
                 FileOperations.create_folder(self.current_path(), name)
@@ -313,7 +262,6 @@ class FilePanel(QWidget):
     # ─── Event Handlers ──────────────────────────────────
 
     def _on_double_click(self, index):
-        """Handle double-click on a file/folder."""
         path = self.model.filePath(index)
         if os.path.isdir(path):
             self.navigate_to(path)
@@ -324,12 +272,10 @@ class FilePanel(QWidget):
                 pass
 
     def _on_click(self, index):
-        """Handle single click — emit file selection for inspector."""
         path = self.model.filePath(index)
         self.file_selected.emit(path)
 
     def _open_selected(self):
-        """Open selected item (Enter key)."""
         path = self._get_selected_path()
         if path:
             if os.path.isdir(path):
@@ -341,14 +287,12 @@ class FilePanel(QWidget):
                     pass
 
     def _on_context_menu(self, pos):
-        """Show context menu on right-click."""
         index = self.tree.indexAt(pos)
         filepath = self.model.filePath(index) if index.isValid() else None
         menu = FileContextMenu(filepath, self, self)
         menu.exec(self.tree.viewport().mapToGlobal(pos))
 
     def _update_status(self):
-        """Update status bar with current directory info."""
         path = self.current_path()
         try:
             items = os.listdir(path)
