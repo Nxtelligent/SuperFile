@@ -9,3 +9,6 @@ help_output.txt
 root_log.txt
 debug_log.txt
 *.xor_*.bin
+
+# Output directory contents (generated files)
+output/
