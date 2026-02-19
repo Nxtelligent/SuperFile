@@ -72,17 +72,18 @@ class FilePanel(QWidget):
         self.tree.setAlternatingRowColors(True)
         self.tree.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
-        # Column widths — all user-resizable
+        # Column widths — all user-resizable by dragging
         header = self.tree.header()
-        header.setStretchLastSection(False)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setStretchLastSection(True)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        # Default widths for non-stretch columns
-        header.resizeSection(1, 100)
-        header.resizeSection(2, 100)
-        header.resizeSection(3, 140)
+        # Default column widths
+        header.resizeSection(0, 350)
+        header.resizeSection(1, 90)
+        header.resizeSection(2, 120)
+        header.resizeSection(3, 150)
 
         layout.addWidget(self.tree)
 

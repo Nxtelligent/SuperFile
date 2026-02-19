@@ -58,7 +58,7 @@ class BreadcrumbBar(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedHeight(32)
+        self.setFixedHeight(40)
         self._current_path = ""
         self._editing = False
 
@@ -71,38 +71,38 @@ class BreadcrumbBar(QWidget):
 
         # Nav buttons
         self.btn_back = QPushButton("←")
-        self.btn_back.setFixedSize(28, 28)
+        self.btn_back.setFixedSize(36, 36)
         self.btn_back.setToolTip("Back")
         self.btn_back.setStyleSheet(self._nav_btn_style())
         main_layout.addWidget(self.btn_back)
 
         self.btn_forward = QPushButton("→")
-        self.btn_forward.setFixedSize(28, 28)
+        self.btn_forward.setFixedSize(36, 36)
         self.btn_forward.setToolTip("Forward")
         self.btn_forward.setStyleSheet(self._nav_btn_style())
         main_layout.addWidget(self.btn_forward)
 
         self.btn_up = QPushButton("↑")
-        self.btn_up.setFixedSize(28, 28)
+        self.btn_up.setFixedSize(36, 36)
         self.btn_up.setToolTip("Up one level")
         self.btn_up.setStyleSheet(self._nav_btn_style())
         main_layout.addWidget(self.btn_up)
 
         self.btn_down = QPushButton("↓")
-        self.btn_down.setFixedSize(28, 28)
+        self.btn_down.setFixedSize(36, 36)
         self.btn_down.setToolTip("Recent directories")
         self.btn_down.setStyleSheet(self._nav_btn_style())
         main_layout.addWidget(self.btn_down)
 
         # Home / bookmark buttons
         self.btn_home = QPushButton("⌂")
-        self.btn_home.setFixedSize(28, 28)
+        self.btn_home.setFixedSize(36, 36)
         self.btn_home.setToolTip("Home")
         self.btn_home.setStyleSheet(self._nav_btn_style())
         main_layout.addWidget(self.btn_home)
 
         self.btn_bookmark = QPushButton("★")
-        self.btn_bookmark.setFixedSize(28, 28)
+        self.btn_bookmark.setFixedSize(36, 36)
         self.btn_bookmark.setToolTip("Bookmark this folder")
         self.btn_bookmark.setStyleSheet(self._nav_btn_style())
         main_layout.addWidget(self.btn_bookmark)
@@ -154,7 +154,7 @@ class BreadcrumbBar(QWidget):
                 background-color: transparent;
                 border: none;
                 color: #6a6a8a;
-                font-size: 14px;
+                font-size: 20px;
                 border-radius: 4px;
             }
             QPushButton:hover {
