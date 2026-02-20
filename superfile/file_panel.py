@@ -109,6 +109,7 @@ class FilePanel(QWidget):
         ]
         for key, func in shortcuts:
             s = QShortcut(QKeySequence(key), self)
+            s.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
             s.activated.connect(func)
 
     # ─── Tab Management ──────────────────────────────────
