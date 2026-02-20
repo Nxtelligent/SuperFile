@@ -111,17 +111,47 @@ class FileOperations:
     @staticmethod
     def delete_file(path):
         """Delete a file or directory (to recycle bin if possible, else permanent)."""
+        # Try Windows Recycle Bin via shell API
         try:
-            from PySide6.QtCore import QFile
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-            else:
-                QFile.moveToTrash(path)
+            import ctypes
+            from ctypes import wintypes
+
+            class SHFILEOPSTRUCTW(ctypes.Structure):
+                _fields_ = [
+                    ("hwnd", wintypes.HWND),
+                    ("wFunc", ctypes.c_uint),
+                    ("pFrom", ctypes.c_wchar_p),
+                    ("pTo", ctypes.c_wchar_p),
+                    ("fFlags", ctypes.c_ushort),
+                    ("fAnyOperationsAborted", wintypes.BOOL),
+                    ("hNameMappings", ctypes.c_void_p),
+                    ("lpszProgressTitle", ctypes.c_wchar_p),
+                ]
+
+            FO_DELETE = 3
+            FOF_ALLOWUNDO = 0x0040      # Send to Recycle Bin
+            FOF_NOCONFIRMATION = 0x0010  # No confirmation dialog
+            FOF_SILENT = 0x0004         # No progress dialog
+
+            # pFrom must be double null-terminated
+            file_op = SHFILEOPSTRUCTW()
+            file_op.hwnd = 0
+            file_op.wFunc = FO_DELETE
+            file_op.pFrom = path + '\0'
+            file_op.pTo = None
+            file_op.fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT
+
+            result = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(file_op))
+            if result == 0:
+                return  # Success
         except Exception:
-            if os.path.isdir(path):
-                shutil.rmtree(path)
-            else:
-                os.remove(path)
+            pass
+
+        # Fallback: permanent delete
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+        else:
+            os.remove(path)
 
     @staticmethod
     def rename_file(path, new_name):
