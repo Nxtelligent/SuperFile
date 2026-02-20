@@ -251,18 +251,16 @@ class StorageItem(QWidget):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(self.rect().adjusted(4, 0, -4, 0), 4, 4)
 
-        # Usage bar
-        bar_rect = self._bar_widget.geometry()
-        bar_x = bar_rect.x()
-        bar_y = bar_rect.y()
-        bar_w = bar_rect.width()
-        bar_h = bar_rect.height()
+        # Usage bar — map bar_widget position to StorageItem coordinates
+        bar_pos = self._bar_widget.mapTo(self, self._bar_widget.rect().topLeft())
+        bar_w = self._bar_widget.width()
+        bar_h = self._bar_widget.height()
 
         if bar_w > 0:
             # Background track
             painter.setBrush(QColor(30, 30, 48))  # #1e1e30
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawRoundedRect(bar_x, bar_y, bar_w, bar_h, 3, 3)
+            painter.drawRoundedRect(bar_pos.x(), bar_pos.y(), bar_w, bar_h, 3, 3)
 
             # Fill
             fill_w = int(bar_w * self._ratio)
@@ -275,7 +273,7 @@ class StorageItem(QWidget):
                 else:
                     color = QColor(220, 80, 80)  # red
                 painter.setBrush(color)
-                painter.drawRoundedRect(bar_x, bar_y, fill_w, bar_h, 3, 3)
+                painter.drawRoundedRect(bar_pos.x(), bar_pos.y(), fill_w, bar_h, 3, 3)
 
         painter.end()
         super().paintEvent(event)
