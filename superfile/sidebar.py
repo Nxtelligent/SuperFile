@@ -105,6 +105,13 @@ class SidebarSection(QWidget):
         self.items_layout.addWidget(item)
         self._items.append(item)
 
+    def add_storage_item(self, label, path, icon, used, total):
+        """Add a storage item with a usage bar."""
+        item = StorageItem(label, path, icon, used, total)
+        item.clicked.connect(self.item_clicked.emit)
+        self.items_layout.addWidget(item)
+        self._items.append(item)
+
     def clear_items(self):
         """Remove all items."""
         for item in self._items:
@@ -162,6 +169,115 @@ class SidebarItem(QWidget):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(self.rect().adjusted(4, 0, -4, 0), 4, 4)
             painter.end()
+        super().paintEvent(event)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.path:
+            self.clicked.emit(self.path)
+
+
+class StorageItem(QWidget):
+    """A storage drive item with icon, label, and usage bar."""
+
+    clicked = Signal(str)  # path
+
+    def __init__(self, label, path, icon, used, total, parent=None):
+        super().__init__(parent)
+        self.path = path
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(44)
+        self.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
+        self._hovered = False
+        self._used = used
+        self._total = total
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 4, 12, 4)
+        layout.setSpacing(8)
+
+        # Icon
+        if icon:
+            icon_label = QLabel()
+            icon_label.setPixmap(icon.pixmap(QSize(18, 18)))
+            icon_label.setFixedSize(18, 18)
+            icon_label.setStyleSheet("background-color: transparent;")
+            layout.addWidget(icon_label)
+
+        # Right side: label + bar
+        right = QWidget()
+        right.setStyleSheet("background-color: transparent;")
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(2)
+
+        # Label with size info
+        size_text = f"{format_file_size(used)} / {format_file_size(total)}"
+        name_label = QLabel(label)
+        name_label.setStyleSheet("color: #c0c0d0; font-size: 11px; background-color: transparent;")
+        right_layout.addWidget(name_label)
+
+        # Usage bar container
+        bar_widget = QWidget()
+        bar_widget.setFixedHeight(6)
+        bar_widget.setStyleSheet("background-color: transparent;")
+        right_layout.addWidget(bar_widget)
+
+        layout.addWidget(right, 1)
+
+        # Size label on the right
+        size_label = QLabel(size_text)
+        size_label.setStyleSheet("color: #5a5a7a; font-size: 9px; background-color: transparent;")
+        layout.addWidget(size_label)
+
+        # Store bar info for painting
+        self._bar_widget = bar_widget
+        self._ratio = used / total if total > 0 else 0
+
+    def enterEvent(self, event):
+        self._hovered = True
+        self.update()
+
+    def leaveEvent(self, event):
+        self._hovered = False
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Hover background
+        if self._hovered:
+            painter.setBrush(QColor(42, 42, 62))  # #2a2a3e
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(self.rect().adjusted(4, 0, -4, 0), 4, 4)
+
+        # Usage bar
+        bar_rect = self._bar_widget.geometry()
+        bar_x = bar_rect.x()
+        bar_y = bar_rect.y()
+        bar_w = bar_rect.width()
+        bar_h = bar_rect.height()
+
+        if bar_w > 0:
+            # Background track
+            painter.setBrush(QColor(30, 30, 48))  # #1e1e30
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawRoundedRect(bar_x, bar_y, bar_w, bar_h, 3, 3)
+
+            # Fill
+            fill_w = int(bar_w * self._ratio)
+            if fill_w > 0:
+                # Color based on usage: blue → orange → red
+                if self._ratio < 0.7:
+                    color = QColor(90, 143, 212)  # blue
+                elif self._ratio < 0.9:
+                    color = QColor(232, 168, 56)  # orange
+                else:
+                    color = QColor(220, 80, 80)  # red
+                painter.setBrush(color)
+                painter.drawRoundedRect(bar_x, bar_y, fill_w, bar_h, 3, 3)
+
+        painter.end()
         super().paintEvent(event)
 
     def mousePressEvent(self, event):
@@ -281,7 +397,7 @@ class NavigationSidebar(QWidget):
                 self.bookmarks_section.add_item(name, path, _system_icon(path))
 
     def _populate_storage(self):
-        """Add drive letters."""
+        """Add drive letters with usage bars."""
         for letter in string.ascii_uppercase:
             drive = f"{letter}:\\"
             if os.path.exists(drive):
@@ -299,7 +415,9 @@ class NavigationSidebar(QWidget):
                             label = f"{buf.value} ({letter}:)"
                     except Exception:
                         pass
-                    self.storage_section.add_item(label, drive, _drive_icon_for(drive))
+                    self.storage_section.add_storage_item(
+                        label, drive, _drive_icon_for(drive), used, total
+                    )
                 except Exception:
                     self.storage_section.add_item(f"({letter}:)", drive, _generic_drive_icon())
 

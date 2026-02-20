@@ -11,7 +11,7 @@ def get_stylesheet():
     QWidget {
         background-color: #161622;
         color: #c0c0d0;
-        font-family: "Segoe UI", "Inter", sans-serif;
+        font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
         font-size: 13px;
     }
 
