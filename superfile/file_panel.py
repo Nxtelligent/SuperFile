@@ -97,19 +97,19 @@ class FilePanel(QWidget):
         self._add_tab(start_path)
 
     def _setup_shortcuts(self):
-        """Panel-local shortcuts."""
+        """Panel-local shortcuts — attached to tree view which has focus."""
         shortcuts = [
             ("Ctrl+C", self.copy_selected),
             ("Ctrl+X", self.cut_selected),
             ("Ctrl+V", self.paste),
             ("F2", self.rename_selected),
-            ("Delete", self.delete_selected),
+            ("Del", self.delete_selected),
             ("Return", self._open_selected),
             ("Backspace", self.breadcrumb.go_up),
         ]
         for key, func in shortcuts:
-            s = QShortcut(QKeySequence(key), self)
-            s.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            s = QShortcut(QKeySequence(key), self.tree)
+            s.setContext(Qt.ShortcutContext.WidgetShortcut)
             s.activated.connect(func)
 
     # ─── Tab Management ──────────────────────────────────
